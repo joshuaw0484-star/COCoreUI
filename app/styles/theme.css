@@ -1,0 +1,74 @@
+/* app/styles/theme.css */
+
+:root {
+    /* Brand Color Tokens */
+    --color-primary: #15803d; /* Deep Forest Green */
+    --color-primary-light: #bbf7d0; /* Sprout Green */
+    --color-primary-dark: #166534; /* Moss/Text Green */
+
+    --color-secondary: #0284c7; /* Clear Water Blue */
+    --color-secondary-light: #e0f2fe; /* Light Water Drop Hint */
+
+    /* Semantic Alert Tokens */
+    --color-danger: #dc2626; /* Aphid Threat / Pest Red */
+    --color-danger-light: #fee2e2;
+    --color-warning: #ea580c; /* Frost Warning Orange */
+    --color-warning-light: #ffedd5;
+    --color-success: #16a34a; /* Healthy Badge Green */
+    --color-success-light: #dcfce7;
+
+    /* Neutrals & Surfaces */
+    --color-bg-app: #f1f5f9; /* Slate Application Backdrop */
+    --color-bg-card: #ffffff; /* Crisp Paper Canvas Surface */
+    --color-border: #e2e8f0; /* Soft Structural Boundary Lines */
+    --color-border-hover: #cbd5e1;
+
+    /* Typography Colors */
+    --color-text-main: #0f172a; /* Ink Slate for Headers */
+    --color-text-muted: #64748b; /* Soft Grey for Metadata / Subtitles */
+    --color-text-body: #334155; /* Dark Charcoal for Paragraphs / Copy */
+
+    /* Global Layout Structural Modifiers */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-main:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --transition-smooth: all 0.2s ease-in-out;
+}
+
+/* Global Baseline Overrides */
+html,
+body {
+    font-family: var(--font-main);
+    background-color: var(--color-bg-app);
+    color: var(--color-text-body);
+    margin: 0;
+    padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--color-text-main);
+    font-weight: 700;
+}
+
+/* Polished Scrollbar Components for Newsfeeds & Lists */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
