@@ -15,6 +15,7 @@ export default [
         index("routes/dashboard.tsx"),
         route("plan", "routes/planner.tsx"),
         route("plants", "routes/plants.tsx"),
+        route("plants/:id", "routes/plant-detail.tsx"),
         route("inventory", "routes/inventory.tsx"),
         route("journal", "routes/journal.tsx"),
     ]),
