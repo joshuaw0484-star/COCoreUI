@@ -15,10 +15,17 @@ export interface SoilTreatment {
     date: string;
 }
 
+// 🌿 New instance object matching your duplicate crop workflow
+export interface PlantInstance {
+    instanceId: string;
+    plantId: string;
+}
+
 export interface GridPlotCell {
-    id: string; // Distinct ID string instead of fixed coordinates
-    name: string; // e.g., "Raised Bed Alpha" or "Plot 1"
-    plantIds: string[];
+    id: string;
+    name: string;
+    containerType: "Outdoor Bed" | "Seed Tray";
+    plantInstances: PlantInstance[]; // 👈 Updated from plantIds: string[]
     tasks: PlotTask[];
     treatments: SoilTreatment[];
 }
@@ -31,6 +38,13 @@ interface PlotCellProps {
     getPlantNameById: (id: string) => string;
 }
 
+export interface DirectoryPlant {
+    id: string;
+    name: string;
+    shortDescription: string;
+    imageUrl: string;
+}
+
 export const PlotCell: React.FC<PlotCellProps> = ({
     cell,
     isSelected,
@@ -38,8 +52,11 @@ export const PlotCell: React.FC<PlotCellProps> = ({
     onDeleteCell,
     getPlantNameById,
 }) => {
-    const [hoveredPlantId, setHoveredPlantId] = useState<string | null>(null);
-    const hasPlants = cell.plantIds.length > 0;
+    const [hoveredInstanceId, setHoveredInstanceId] = useState<string | null>(
+        null,
+    );
+    const instances = cell.plantInstances || [];
+    const hasPlants = instances.length > 0;
 
     return (
         <div
@@ -64,7 +81,7 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                 position: "relative",
             }}
         >
-            {/* Small top banner with plot name and an independent delete clicker button */}
+            {/* Top Bar: Name & Delete Button */}
             <div
                 style={{
                     display: "flex",
@@ -92,13 +109,12 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                         fontSize: "11px",
                         padding: 0,
                     }}
-                    title="Delete this entire garden bed"
                 >
                     ✕
                 </button>
             </div>
 
-            {/* Middle Workspace Icons Section */}
+            {/* Middle Workspace: Displays Multiple Icons (Even for Duplicates!) */}
             <div
                 style={{
                     display: "flex",
@@ -110,11 +126,13 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                 }}
             >
                 {hasPlants ? (
-                    cell.plantIds.map((id, index) => (
+                    instances.map((item) => (
                         <div
-                            key={`${id}-${index}`}
-                            onMouseEnter={() => setHoveredPlantId(id)}
-                            onMouseLeave={() => setHoveredPlantId(null)}
+                            key={item.instanceId} // 👈 Tracks by the unique allocation ID token string
+                            onMouseEnter={() =>
+                                setHoveredInstanceId(item.instanceId)
+                            }
+                            onMouseLeave={() => setHoveredInstanceId(null)}
                             style={{
                                 fontSize: "18px",
                                 position: "relative",
@@ -122,7 +140,8 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                             }}
                         >
                             🌿
-                            {hoveredPlantId === id && (
+                            {/* Tooltip Popup matched to the absolute instanceId */}
+                            {hoveredInstanceId === item.instanceId && (
                                 <div
                                     style={{
                                         position: "absolute",
@@ -135,10 +154,13 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                                         borderRadius: "var(--radius-sm)",
                                         fontSize: "11px",
                                         whiteSpace: "nowrap",
+                                        fontWeight: "600",
                                         zIndex: 999,
+                                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                                        pointerEvents: "none",
                                     }}
                                 >
-                                    {getPlantNameById(id)}
+                                    {getPlantNameById(item.plantId)}
                                 </div>
                             )}
                         </div>
@@ -156,7 +178,7 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                 )}
             </div>
 
-            {/* Bottom mini-badges indicators block */}
+            {/* Bottom Information Badges */}
             <div
                 style={{
                     display: "flex",
@@ -167,12 +189,12 @@ export const PlotCell: React.FC<PlotCellProps> = ({
                     color: "var(--color-text-muted)",
                 }}
             >
-                {cell.tasks.length > 0 && (
+                {cell.tasks?.length > 0 && (
                     <span>
                         📋 {cell.tasks.filter((t) => !t.isDone).length} tasks
                     </span>
                 )}
-                {cell.treatments.length > 0 && (
+                {cell.treatments?.length > 0 && (
                     <span>🧪 {cell.treatments.length} logs</span>
                 )}
             </div>
