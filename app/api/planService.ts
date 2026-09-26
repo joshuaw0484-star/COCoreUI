@@ -6,7 +6,7 @@ import { type GridPlotCell } from "~/features/garden-plan/components/PlotCell";
 interface BackendContainerDto {
     id: string;
     name: string;
-    containerType: number; // 1 = OutdoorBed, 2 = SeedTray
+    containerType: number;
     plantIds: string[];
     tasks: { id: string; description: string; isDone: boolean }[];
     treatments: {
@@ -19,22 +19,17 @@ interface BackendContainerDto {
 }
 
 export const planService = {
-    /**
-     * Hydrates the entire Canvas Grid from the newly renamed GetById endpoint
-     */
     getContainersByPlanId: async (planId: string): Promise<GridPlotCell[]> => {
         const response = await api.get<BackendContainerDto[]>(
             `/garden-plans/${planId}/containers`,
         );
-
-        // Project backend integer enums and schemas back to frontend UI states
         return response.data.map((dto) => ({
             id: dto.id,
             name: dto.name,
             containerType:
                 dto.containerType === 1 ? "Outdoor Bed" : "Seed Tray",
             plantInstances: dto.plantIds.map((id, index) => ({
-                instanceId: `allocated-fetched-${id}-${index}`, // Re-establish unique instance tracking tokens
+                instanceId: `allocated-fetched-${id}-${index}`,
                 plantId: id,
             })),
             tasks: dto.tasks.map((t) => ({
@@ -47,14 +42,11 @@ export const planService = {
                 type: st.type,
                 source: st.source,
                 quantity: st.quantity,
-                date: st.date,
+                date: dto.name,
             })),
         }));
     },
 
-    /**
-     * Synchronizes the stacked Inspector card parameters back to the .NET SyncState endpoint
-     */
     syncContainerState: async (
         containerId: string,
         payload: {
@@ -64,5 +56,20 @@ export const planService = {
         },
     ): Promise<void> => {
         await api.put(`/garden-containers/${containerId}/sync`, payload);
+    },
+
+    // ➕ NEW: Submits creation configuration packets to your MapPost endpoint
+    createContainer: async (payload: {
+        gardenPlanId: string;
+        name: string;
+        containerType: number;
+    }): Promise<string> => {
+        const response = await api.post<string>("/garden-containers", payload);
+        return response.data; // Returns the generated Guid string
+    },
+
+    // ❌ NEW: Fires network DELETE commands down to your individual endpoint class execution pipe
+    deleteContainer: async (containerId: string): Promise<void> => {
+        await api.delete(`/garden-containers/${containerId}`);
     },
 };
