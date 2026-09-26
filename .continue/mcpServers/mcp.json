@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "dev-mcp-server": {
+            "command": "C:/Users/jwilson/sources/GardeningApp/DevMCP.McpServer/bin/dist/DevMCP.McpServer.exe",
+            "args": []
+        }
+    }
+}

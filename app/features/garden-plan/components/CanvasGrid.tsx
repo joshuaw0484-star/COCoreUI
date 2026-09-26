@@ -1,9 +1,10 @@
 // app/features/garden-plan/components/CanvasGrid.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PlotCell, type GridPlotCell } from "./PlotCell";
 import { CropAllocationsCard } from "./CropAllocationsCard";
 import { PlotTaskCoordinator } from "./PlotTaskCoordinator";
 import { SoilAmendmentsLedger } from "./SoilAmendmentsLedger";
+import { planService } from "~/api/planService";
 
 export interface DirectoryPlant {
     id: string;
@@ -14,32 +15,41 @@ export interface DirectoryPlant {
 
 interface CanvasGridProps {
     registeredPlants: DirectoryPlant[];
+    activeGardenPlanId: string;
 }
 
-export const CanvasGrid: React.FC<CanvasGridProps> = ({ registeredPlants }) => {
-    const [grid, setGrid] = useState<GridPlotCell[]>([
-        {
-            id: "bed-1",
-            name: "Raised Bed 1",
-            containerType: "Outdoor Bed",
-            plantInstances: [],
-            tasks: [],
-            treatments: [],
-        },
-        {
-            id: "bed-2",
-            name: "Raised Bed 2",
-            containerType: "Outdoor Bed",
-            plantInstances: [],
-            tasks: [],
-            treatments: [],
-        },
-    ]);
+export const CanvasGrid: React.FC<CanvasGridProps> = ({
+    registeredPlants,
+    activeGardenPlanId,
+}) => {
+    const [grid, setGrid] = useState<GridPlotCell[]>([]);
 
     const [activeFilterTab, setActiveFilterTab] = useState<
         "Outdoor Bed" | "Seed Tray"
     >("Outdoor Bed");
     const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // 📡 Lifecycle Hook: Run layout data fetch routines every time the season/year changes
+    useEffect(() => {
+        const hydrateCanvasData = async () => {
+            setIsLoading(true);
+            try {
+                const structuralData =
+                    await planService.getContainersByPlanId(activeGardenPlanId);
+                setGrid(structuralData);
+            } catch (err) {
+                console.error(
+                    "Failed to sync canvas configuration matrix with .NET API.",
+                    err,
+                );
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        hydrateCanvasData();
+    }, [activeGardenPlanId]);
 
     const activeSelectedCell =
         grid.find((c) => c.id === selectedCellId) || null;
@@ -47,43 +57,114 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({ registeredPlants }) => {
         (c) => c.containerType === activeFilterTab,
     );
 
+    // Helper utility to pass state packets to our SyncState API interceptor script
+    const persistStateUpdateToServer = async (
+        updatedGridState: GridPlotCell[],
+        targetId: string,
+    ) => {
+        const updatedCell = updatedGridState.find((c) => c.id === targetId);
+        if (!updatedCell) return;
+
+        try {
+            await planService.syncContainerState(targetId, {
+                plantIds: (updatedCell.plantInstances || []).map(
+                    (p) => p.plantId,
+                ),
+                tasks: updatedCell.tasks.map((t) => ({
+                    description: t.description,
+                    isDone: t.isDone,
+                })),
+                treatments: updatedCell.treatments.map((trt) => ({
+                    type: trt.type,
+                    source: trt.source,
+                    quantity: trt.quantity,
+                })),
+            });
+        } catch (err) {
+            alert(
+                "Failed to synchronize state with server database variables.",
+            );
+        }
+    };
+
     // --- ACTIONS LAYER ---
-    const handleAddNewBed = () => {
+    const handleAddNewBed = async () => {
         const nextNumber =
             grid.filter((c) => c.containerType === "Outdoor Bed").length + 1;
-        setGrid([
-            ...grid,
-            {
-                id: `bed-${Date.now()}`,
-                name: `Raised Bed ${nextNumber}`,
+        const placeholderName = `Raised Bed ${nextNumber}`;
+
+        try {
+            // 1. Post creation packet straight to .NET /api/endpoints/gardencontainers/create
+            const newBackendId = await planService.createContainer({
+                gardenPlanId: activeGardenPlanId,
+                name: placeholderName,
+                containerType: 1, // Enum matching OutdoorBed
+            });
+
+            const newBed: GridPlotCell = {
+                id: newBackendId,
+                name: placeholderName,
                 containerType: "Outdoor Bed",
                 plantInstances: [],
                 tasks: [],
                 treatments: [],
-            },
-        ]);
+            };
+            setGrid([...grid, newBed]);
+            setSelectedCellId(newBackendId);
+        } catch {
+            alert("Could not append new bed row to database.");
+        }
     };
 
-    const handleAddNewSeedTray = () => {
+    const handleAddNewSeedTray = async () => {
         const nextNumber =
             grid.filter((c) => c.containerType === "Seed Tray").length + 1;
-        setGrid([
-            ...grid,
-            {
-                id: `tray-${Date.now()}`,
-                name: `Seed Tray ${nextNumber}`,
+        const placeholderName = `Seed Tray ${nextNumber}`;
+
+        try {
+            const newBackendId = await planService.createContainer({
+                gardenPlanId: activeGardenPlanId,
+                name: placeholderName,
+                containerType: 2, // Enum matching SeedTray
+            });
+
+            const newTray: GridPlotCell = {
+                id: newBackendId,
+                name: placeholderName,
                 containerType: "Seed Tray",
                 plantInstances: [],
                 tasks: [],
                 treatments: [],
-            },
-        ]);
+            };
+            setGrid([...grid, newTray]);
+            setSelectedCellId(newBackendId);
+        } catch {
+            alert("Could not append new seed tray to database.");
+        }
     };
 
-    const handleDeleteCellComplete = (id: string, e: React.MouseEvent) => {
+    const handleDeleteCellComplete = async (
+        id: string,
+        e: React.MouseEvent,
+    ) => {
         e.stopPropagation();
-        if (selectedCellId === id) setSelectedCellId(null);
-        setGrid(grid.filter((c) => c.id !== id));
+        if (
+            !confirm(
+                "Are you sure you want to permanently drop this bed container profile?",
+            )
+        )
+            return;
+
+        try {
+            // Fires straight to your new Cascade Delete class endpoint
+            await planService.deleteContainer(id);
+            if (selectedCellId === id) setSelectedCellId(null);
+            setGrid(grid.filter((c) => c.id !== id));
+        } catch {
+            alert(
+                "Failed to safely prune target container profile from SQL server database.",
+            );
+        }
     };
 
     const handleAddPlant = (plantId: string) => {
